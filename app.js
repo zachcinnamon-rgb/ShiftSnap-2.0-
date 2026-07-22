@@ -2,7 +2,7 @@
 ==========================================
 ShiftSnap
 app.js
-Version 0.2
+Version 0.3
 ==========================================
 */
 
@@ -10,24 +10,28 @@ const uploadButton = document.getElementById("uploadButton");
 const imageInput = document.getElementById("imageInput");
 
 const previewImage = document.getElementById("previewImage");
+
 const processedCanvas = document.getElementById("processedCanvas");
+const cropCanvas = document.getElementById("cropCanvas");
 
 const statusText = document.getElementById("statusText");
 
-let processor;
-let detector;
+let processor = null;
+let detector = null;
 
 let cvReady = false;
 
-/*----------------------------------
+/*
+==========================================
 Wait for OpenCV
-----------------------------------*/
+==========================================
+*/
 
-function waitForOpenCV() {
+function initializeOpenCV() {
 
     if (typeof cv === "undefined") {
 
-        setTimeout(waitForOpenCV, 100);
+        setTimeout(initializeOpenCV, 100);
 
         return;
 
@@ -35,13 +39,12 @@ function waitForOpenCV() {
 
     if (cv.Mat) {
 
-        cvReady = true;
-
         processor = new ImageProcessor();
-
         detector = new GridDetector();
 
-        statusText.innerHTML = "Ready";
+        cvReady = true;
+
+        statusText.textContent = "Ready";
 
         console.log("OpenCV Ready");
 
@@ -49,48 +52,48 @@ function waitForOpenCV() {
 
     }
 
-    setTimeout(waitForOpenCV, 100);
+    setTimeout(initializeOpenCV, 100);
 
 }
 
-waitForOpenCV();
+initializeOpenCV();
 
-/*----------------------------------
+/*
+==========================================
 Upload Button
-----------------------------------*/
+==========================================
+*/
 
-uploadButton.onclick = () => {
+uploadButton.addEventListener("click", () => {
 
     imageInput.click();
 
-};
+});
 
-/*----------------------------------
-File Selected
-----------------------------------*/
+imageInput.addEventListener("change", event => {
 
-imageInput.onchange = (e) => {
-
-    const file = e.target.files[0];
+    const file = event.target.files[0];
 
     if (!file)
         return;
 
-    loadScreenshot(file);
+    processScreenshot(file);
 
-};
+});
 
-/*----------------------------------
-Drag and Drop
-----------------------------------*/
+/*
+==========================================
+Drag & Drop
+==========================================
+*/
 
-document.body.addEventListener("dragover", (e) => {
+document.body.addEventListener("dragover", e => {
 
     e.preventDefault();
 
 });
 
-document.body.addEventListener("drop", (e) => {
+document.body.addEventListener("drop", e => {
 
     e.preventDefault();
 
@@ -99,15 +102,17 @@ document.body.addEventListener("drop", (e) => {
     if (!file)
         return;
 
-    loadScreenshot(file);
+    processScreenshot(file);
 
 });
 
-/*----------------------------------
+/*
+==========================================
 Main Pipeline
-----------------------------------*/
+==========================================
+*/
 
-async function loadScreenshot(file) {
+async function processScreenshot(file) {
 
     if (!cvReady) {
 
@@ -117,114 +122,74 @@ async function loadScreenshot(file) {
 
     }
 
-    statusText.innerHTML = "Loading Screenshot...";
+    try {
 
-    previewImage.src = URL.createObjectURL(file);
+        statusText.textContent = "Loading Screenshot...";
 
-    previewImage.style.display = "block";
+        previewImage.src = URL.createObjectURL(file);
 
-    previewImage.onload = async () => {
+        const originalMat = await processor.load(file);
 
-        try {
+        statusText.textContent = "Enhancing Image...";
 
-            statusText.innerHTML = "Processing Image...";
+        const imageData = processor.process(originalMat);
 
-            const src = await processor.load(file);
+        statusText.textContent = "Detecting Schedule...";
 
-            const result = processor.process(src);
+        const detection = detector.detect(imageData);
 
-            statusText.innerHTML = "Finding Schedule...";
-
-            const rect = detector.detect(result.processed);
-
-            if (!rect) {
-
-                statusText.innerHTML =
-                    "Schedule Not Found";
-
-                processor.cleanup(
-                    src,
-                    result.processed
-                );
-
-                return;
-
-            }
-
-            detector.drawRectangle(
-                src,
-                rect
-            );
-
-            cv.imshow(
-                processedCanvas,
-                src
-            );
-
-            const crop =
-                detector.crop(
-                    result.original,
-                    rect
-                );
-
-            showCrop(crop);
+        if (!detection) {
 
             processor.cleanup(
-                src,
-                result.processed,
-                crop
+                imageData.gray,
+                imageData.enhanced,
+                imageData.binary,
+                imageData.original
             );
 
-            statusText.innerHTML =
-                "Schedule Found ✓";
+            statusText.textContent = "Schedule Not Found";
+
+            return;
 
         }
 
-        catch (err) {
+        detector.drawRectangle(
+            detection.original,
+            detection.rect
+        );
 
-            console.error(err);
+        cv.imshow(
+            processedCanvas,
+            detection.original
+        );
 
-            statusText.innerHTML =
-                "Processing Failed";
+        cv.imshow(
+            cropCanvas,
+            detection.crop
+        );
 
-        }
+        statusText.textContent =
+            "Schedule Found ✓";
 
-    };
+        processor.cleanup(
 
-}
+            detection.gray,
+            detection.enhanced,
+            detection.binary,
+            detection.grid,
+            detection.crop,
+            detection.original
 
-/*----------------------------------
-Display Crop
-----------------------------------*/
-
-function showCrop(mat) {
-
-    let cropCanvas =
-        document.getElementById("cropCanvas");
-
-    if (!cropCanvas) {
-
-        cropCanvas =
-            document.createElement("canvas");
-
-        cropCanvas.id =
-            "cropCanvas";
-
-        cropCanvas.style.marginTop =
-            "25px";
-
-        cropCanvas.style.maxWidth =
-            "100%";
-
-        document
-            .getElementById("processedContainer")
-            .appendChild(cropCanvas);
+        );
 
     }
 
-    cv.imshow(
-        cropCanvas,
-        mat
-    );
+    catch (error) {
+
+        console.error(error);
+
+        statusText.textContent = "Processing Failed";
+
+    }
 
 }
