@@ -1,22 +1,38 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
     <title>ShiftSnap</title>
 
     <link rel="stylesheet" href="style.css">
 
-    <script src="https://cdn.jsdelivr.net/npm/opencv.js"></script>
+    <!-- OpenCV -->
+    <script async src="https://docs.opencv.org/4.x/opencv.js"></script>
+
+    <!-- Tesseract (used later) -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
 </head>
+
 <body>
 
 <div class="container">
 
     <header>
+
         <h1>ShiftSnap</h1>
-        <p>FAA WMT Schedule Importer</p>
+
+        <p>
+            FAA WMT Schedule Importer
+        </p>
+
     </header>
 
     <section class="upload-card">
@@ -28,20 +44,36 @@
             hidden>
 
         <button id="uploadButton">
+
             Select WMT Screenshot
+
         </button>
 
         <p class="hint">
-            or drag and drop a screenshot here
+
+            or drag and drop a screenshot anywhere on this page
+
         </p>
 
     </section>
 
     <section id="previewContainer">
 
+        <h2>Original Screenshot</h2>
+
         <img
             id="previewImage"
-            alt="Preview">
+            alt="Screenshot Preview">
+
+    </section>
+
+    <section id="processedContainer">
+
+        <h2>Detected Schedule</h2>
+
+        <canvas
+            id="processedCanvas">
+        </canvas>
 
     </section>
 
@@ -57,7 +89,25 @@
 
 </div>
 
+<!-- ===================================== -->
+<!-- Project Scripts -->
+<!-- ===================================== -->
+
+<script src="js/imageProcessor.js"></script>
+
+<script src="js/gridDetector.js"></script>
+
+<!-- Coming Next -->
+<script src="js/cellExtractor.js"></script>
+<script src="js/ocr.js"></script>
+<script src="js/dictionary.js"></script>
+<script src="js/parser.js"></script>
+<script src="js/shifts.js"></script>
+<script src="js/calendar.js"></script>
+
+<!-- Main App -->
 <script src="app.js"></script>
 
 </body>
+
 </html>
