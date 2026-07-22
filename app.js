@@ -1,203 +1,88 @@
-/*
-==========================================
-ShiftSnap
-app.js
-Version 1.0
-==========================================
-*/
+// ShiftSnap app.js
 
-const uploadButton = document.getElementById("uploadButton");
-const imageInput = document.getElementById("imageInput");
+window.addEventListener("DOMContentLoaded", () => {
 
-const previewImage = document.getElementById("previewImage");
+    const uploadButton = document.getElementById("uploadButton");
+    const imageInput = document.getElementById("imageInput");
 
-const processedCanvas = document.getElementById("processedCanvas");
-const cropCanvas = document.getElementById("cropCanvas");
+    const previewImage = document.getElementById("previewImage");
 
-const statusText = document.getElementById("statusText");
+    const processedCanvas = document.getElementById("processedCanvas");
+    const cropCanvas = document.getElementById("cropCanvas");
 
-let processor = null;
-let detector = null;
+    const statusText = document.getElementById("statusText");
 
-/*
-==========================================
-Initialize App
-==========================================
-*/
+    uploadButton.addEventListener("click", () => {
+        imageInput.click();
+    });
 
-function initializeApp() {
+    imageInput.addEventListener("change", (e) => {
 
-    if (!window.cvReady) {
+        const file = e.target.files[0];
 
-        setTimeout(initializeApp, 100);
-
-        return;
-
-    }
-
-    processor = new ImageProcessor();
-    detector = new GridDetector();
-
-    statusText.textContent = "Ready";
-
-    console.log("ShiftSnap Ready");
-
-}
-
-initializeApp();
-
-/*
-==========================================
-Upload Button
-==========================================
-*/
-
-uploadButton.addEventListener("click", () => {
-
-    imageInput.click();
-
-});
-
-/*
-==========================================
-Image Selected
-==========================================
-*/
-
-imageInput.addEventListener("change", event => {
-
-    const file = event.target.files[0];
-
-    if (!file)
-        return;
-
-    processScreenshot(file);
-
-});
-
-/*
-==========================================
-Drag & Drop
-==========================================
-*/
-
-document.addEventListener("dragover", e => {
-
-    e.preventDefault();
-
-});
-
-document.addEventListener("drop", e => {
-
-    e.preventDefault();
-
-    const file = e.dataTransfer.files[0];
-
-    if (!file)
-        return;
-
-    processScreenshot(file);
-
-});
-
-/*
-==========================================
-Main Processing Pipeline
-==========================================
-*/
-
-async function processScreenshot(file) {
-
-    if (!window.cvReady) {
-
-        alert("OpenCV has not finished loading.");
-
-        return;
-
-    }
-
-    try {
-
-        statusText.textContent = "Loading Image...";
-
-        previewImage.src = URL.createObjectURL(file);
-
-        previewImage.style.display = "block";
-
-        const source = await processor.load(file);
-
-        statusText.textContent = "Processing...";
-
-        const imageData = processor.process(source);
-
-        statusText.textContent = "Finding Schedule...";
-
-        const detection = detector.detect(imageData);
-
-        if (!detection) {
-
-            statusText.textContent = "Schedule Not Found";
-
-            processor.cleanup(
-
-                imageData.gray,
-                imageData.enhanced,
-                imageData.binary,
-                imageData.original
-
-            );
-
+        if (!file)
             return;
 
-        }
+        const reader = new FileReader();
 
-        detector.drawRectangle(
+        reader.onload = function (event) {
 
-            detection.original,
+            previewImage.onload = function () {
 
-            detection.rect
+                if (!window.cvReady) {
+                    statusText.textContent = "OpenCV is not ready.";
+                    return;
+                }
 
-        );
+                try {
 
-        cv.imshow(
+                    statusText.textContent = "Reading image...";
 
-            processedCanvas,
+                    const processor = new ImageProcessor();
 
-            detection.original
+                    const detector = new GridDetector();
 
-        );
+                    const imageData = processor.process(previewImage);
 
-        cv.imshow(
+                    // Display binary image for debugging
+                    cv.imshow(processedCanvas, imageData.binary);
 
-            cropCanvas,
+                    statusText.textContent = "Searching for schedule...";
 
-            detection.crop
+                    const result = detector.detect(imageData);
 
-        );
+                    if (!result) {
 
-        statusText.textContent = "Schedule Found";
+                        statusText.textContent = "Schedule not found.";
 
-        processor.cleanup(
+                        return;
 
-            detection.gray,
-            detection.enhanced,
-            detection.binary,
-            detection.grid,
-            detection.crop,
-            detection.original
+                    }
 
-        );
+                    cv.imshow(cropCanvas, result.crop);
 
-    }
+                    statusText.textContent = "Schedule detected successfully.";
 
-    catch (error) {
+                }
+                catch (err) {
 
-        console.error(error);
+                    console.error(err);
 
-        statusText.textContent = "Error";
+                    statusText.textContent =
+                        "Error: " + err.message;
 
-        alert(error.message);
+                }
 
-    }
+            };
 
-}
+            previewImage.src = event.target.result;
+
+            previewImage.style.display = "block";
+
+        };
+
+        reader.readAsDataURL(file);
+
+    });
+
+});
