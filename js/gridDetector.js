@@ -2,172 +2,56 @@
 ==========================================
 ShiftSnap
 gridDetector.js
-Version 0.3
-==========================================
-
-Responsibilities
-----------------
-• Detect horizontal grid lines
-• Detect vertical grid lines
-• Combine line masks
-• Find largest schedule rectangle
-• Crop schedule
-• Draw debugging rectangle
-
-Returns:
-{
-    original,
-    gray,
-    enhanced,
-    binary,
-    grid,
-    rect,
-    crop
-}
+Version 2.0
+FAA WMT Detector
 ==========================================
 */
 
 class GridDetector {
 
-    constructor() {
-
-        this.MIN_AREA = 100000;
-
-    }
-
     detect(imageData) {
 
-        const horizontal = this.detectHorizontal(imageData.binary);
+        const binary = imageData.binary;
 
-        const vertical = this.detectVertical(imageData.binary);
-
-        const grid = new cv.Mat();
-
-        cv.add(horizontal, vertical, grid);
-
-        const rect = this.findLargestRectangle(grid);
-
-        horizontal.delete();
-        vertical.delete();
-
-        if (!rect) {
-
-            grid.delete();
-
-            return null;
-
-        }
-
-        const crop = this.crop(imageData.original, rect);
-
-        return {
-
-            ...imageData,
-
-            grid,
-
-            rect,
-
-            crop
-
-        };
-
-    }
-
-    detectHorizontal(binary) {
-
-        const result = binary.clone();
-
-        const kernelWidth = Math.max(
-            40,
-            Math.floor(binary.cols / 18)
-        );
-
-        const kernel = cv.getStructuringElement(
-            cv.MORPH_RECT,
-            new cv.Size(kernelWidth, 1)
-        );
-
-        cv.erode(result, result, kernel);
-        cv.dilate(result, result, kernel);
-
-        kernel.delete();
-
-        return result;
-
-    }
-
-    detectVertical(binary) {
-
-        const result = binary.clone();
-
-        const kernelHeight = Math.max(
-            40,
-            Math.floor(binary.rows / 18)
-        );
-
-        const kernel = cv.getStructuringElement(
-            cv.MORPH_RECT,
-            new cv.Size(1, kernelHeight)
-        );
-
-        cv.erode(result, result, kernel);
-        cv.dilate(result, result, kernel);
-
-        kernel.delete();
-
-        return result;
-
-    }
-
-    findLargestRectangle(grid) {
-
+        // Find bright card instead of thin grid lines
         const contours = new cv.MatVector();
         const hierarchy = new cv.Mat();
 
         cv.findContours(
-
-            grid,
-
+            binary,
             contours,
-
             hierarchy,
-
             cv.RETR_EXTERNAL,
-
             cv.CHAIN_APPROX_SIMPLE
-
         );
 
-        let largestRect = null;
-        let largestArea = 0;
+        let bestRect = null;
+        let bestArea = 0;
 
         for (let i = 0; i < contours.size(); i++) {
 
             const contour = contours.get(i);
-
             const rect = cv.boundingRect(contour);
 
             const area = rect.width * rect.height;
 
+            // Ignore tiny contours
+            if (area < 200000) {
+                contour.delete();
+                continue;
+            }
+
+            // WMT schedule is much wider than tall
+            const ratio = rect.width / rect.height;
+
             if (
-                area > this.MIN_AREA &&
-                area > largestArea
+                ratio > 0.8 &&
+                ratio < 3.5 &&
+                area > bestArea
             ) {
 
-                largestArea = area;
-
-                largestRect = {
-
-                    x: rect.x,
-
-                    y: rect.y,
-
-                    width: rect.width,
-
-                    height: rect.height
-
-                };
+                bestArea = area;
+                bestRect = rect;
 
             }
 
@@ -178,25 +62,44 @@ class GridDetector {
         contours.delete();
         hierarchy.delete();
 
-        return largestRect;
+        if (!bestRect)
+            return null;
 
-    }
+        // Remove padding around the card
+        const margin = 20;
 
-    crop(mat, rect) {
+        const x = Math.max(0, bestRect.x + margin);
+        const y = Math.max(0, bestRect.y + margin);
 
-        const roi = new cv.Rect(
-
-            rect.x,
-
-            rect.y,
-
-            rect.width,
-
-            rect.height
-
+        const width = Math.min(
+            imageData.original.cols - x,
+            bestRect.width - margin * 2
         );
 
-        return mat.roi(roi).clone();
+        const height = Math.min(
+            imageData.original.rows - y,
+            bestRect.height - margin * 2
+        );
+
+        const rect = new cv.Rect(
+            x,
+            y,
+            width,
+            height
+        );
+
+        const crop =
+            imageData.original.roi(rect).clone();
+
+        return {
+
+            ...imageData,
+
+            rect,
+
+            crop
+
+        };
 
     }
 
@@ -209,11 +112,8 @@ class GridDetector {
             new cv.Point(rect.x, rect.y),
 
             new cv.Point(
-
                 rect.x + rect.width,
-
                 rect.y + rect.height
-
             ),
 
             new cv.Scalar(0, 255, 0, 255),
@@ -221,50 +121,6 @@ class GridDetector {
             5
 
         );
-
-    }
-
-    drawGrid(mat, grid) {
-
-        cv.cvtColor(
-
-            grid,
-
-            grid,
-
-            cv.COLOR_GRAY2RGBA
-
-        );
-
-        cv.addWeighted(
-
-            mat,
-
-            0.8,
-
-            grid,
-
-            0.5,
-
-            0,
-
-            mat
-
-        );
-
-    }
-
-    cleanup(...mats) {
-
-        mats.forEach(mat => {
-
-            if (mat instanceof cv.Mat) {
-
-                mat.delete();
-
-            }
-
-        });
 
     }
 
