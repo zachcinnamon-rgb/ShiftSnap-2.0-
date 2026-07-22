@@ -5,18 +5,38 @@
 
     <meta charset="UTF-8">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
 
     <title>ShiftSnap</title>
 
     <link rel="stylesheet" href="style.css">
 
-    <!-- OpenCV -->
-    <script async src="https://docs.opencv.org/4.x/opencv.js"></script>
+    <!-- OpenCV Initialization -->
+    <script>
+        window.cvReady = false;
 
-    <!-- Tesseract (used later) -->
+        var Module = {
+            onRuntimeInitialized() {
+
+                window.cvReady = true;
+
+                console.log("OpenCV Ready");
+
+                const status = document.getElementById("statusText");
+
+                if (status) {
+                    status.textContent = "OpenCV Ready";
+                }
+
+            }
+        };
+    </script>
+
+    <!-- OpenCV -->
+    <script src="https://docs.opencv.org/4.x/opencv.js"></script>
+
+    <!-- OCR -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
 </head>
@@ -29,13 +49,15 @@
 
         <h1>ShiftSnap</h1>
 
-        <p>
-            FAA WMT Schedule Importer
-        </p>
+        <p>FAA WMT Schedule Importer</p>
 
     </header>
 
     <section class="upload-card">
+
+        <button id="uploadButton">
+            Select WMT Screenshot
+        </button>
 
         <input
             id="imageInput"
@@ -43,16 +65,8 @@
             accept="image/*"
             hidden>
 
-        <button id="uploadButton">
-
-            Select WMT Screenshot
-
-        </button>
-
         <p class="hint">
-
             or drag and drop a screenshot anywhere on this page
-
         </p>
 
     </section>
@@ -63,49 +77,57 @@
 
         <img
             id="previewImage"
-            alt="Screenshot Preview">
+            alt="Original Screenshot"
+            style="display:none;max-width:100%;border:1px solid #ccc;">
 
     </section>
 
     <section id="processedContainer">
 
-        <h2>Detected Schedule</h2>
+        <h2>Schedule Detection</h2>
 
         <canvas
-            id="processedCanvas">
+            id="processedCanvas"
+            style="max-width:100%;border:1px solid #ccc;">
+        </canvas>
+
+        <h2 style="margin-top:30px;">
+            Cropped Schedule
+        </h2>
+
+        <canvas
+            id="cropCanvas"
+            style="max-width:100%;border:1px solid #ccc;">
         </canvas>
 
     </section>
 
     <section class="status">
 
+        <strong>Status:</strong>
+
         <span id="statusText">
-
-            Ready
-
+            Loading OpenCV...
         </span>
 
     </section>
 
 </div>
 
-<!-- ===================================== -->
 <!-- Project Scripts -->
-<!-- ===================================== -->
 
 <script src="js/imageProcessor.js"></script>
-
 <script src="js/gridDetector.js"></script>
 
-<!-- Coming Next -->
+<!-- These will be added as we build them -->
+<!--
 <script src="js/cellExtractor.js"></script>
 <script src="js/ocr.js"></script>
-<script src="js/dictionary.js"></script>
 <script src="js/parser.js"></script>
-<script src="js/shifts.js"></script>
 <script src="js/calendar.js"></script>
+<script src="js/shifts.js"></script>
+-->
 
-<!-- Main App -->
 <script src="app.js"></script>
 
 </body>
