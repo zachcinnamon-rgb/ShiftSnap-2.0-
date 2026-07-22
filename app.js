@@ -2,7 +2,7 @@
 ==========================================
 ShiftSnap
 app.js
-Version 0.3
+Version 1.0
 ==========================================
 */
 
@@ -19,44 +19,32 @@ const statusText = document.getElementById("statusText");
 let processor = null;
 let detector = null;
 
-let cvReady = false;
-
 /*
 ==========================================
-Wait for OpenCV
+Initialize App
 ==========================================
 */
 
-function initializeOpenCV() {
+function initializeApp() {
 
-    if (typeof cv === "undefined") {
+    if (!window.cvReady) {
 
-        setTimeout(initializeOpenCV, 100);
-
-        return;
-
-    }
-
-    if (cv.Mat) {
-
-        processor = new ImageProcessor();
-        detector = new GridDetector();
-
-        cvReady = true;
-
-        statusText.textContent = "Ready";
-
-        console.log("OpenCV Ready");
+        setTimeout(initializeApp, 100);
 
         return;
 
     }
 
-    setTimeout(initializeOpenCV, 100);
+    processor = new ImageProcessor();
+    detector = new GridDetector();
+
+    statusText.textContent = "Ready";
+
+    console.log("ShiftSnap Ready");
 
 }
 
-initializeOpenCV();
+initializeApp();
 
 /*
 ==========================================
@@ -69,6 +57,12 @@ uploadButton.addEventListener("click", () => {
     imageInput.click();
 
 });
+
+/*
+==========================================
+Image Selected
+==========================================
+*/
 
 imageInput.addEventListener("change", event => {
 
@@ -87,13 +81,13 @@ Drag & Drop
 ==========================================
 */
 
-document.body.addEventListener("dragover", e => {
+document.addEventListener("dragover", e => {
 
     e.preventDefault();
 
 });
 
-document.body.addEventListener("drop", e => {
+document.addEventListener("drop", e => {
 
     e.preventDefault();
 
@@ -108,15 +102,15 @@ document.body.addEventListener("drop", e => {
 
 /*
 ==========================================
-Main Pipeline
+Main Processing Pipeline
 ==========================================
 */
 
 async function processScreenshot(file) {
 
-    if (!cvReady) {
+    if (!window.cvReady) {
 
-        alert("OpenCV is still loading.");
+        alert("OpenCV has not finished loading.");
 
         return;
 
@@ -124,52 +118,64 @@ async function processScreenshot(file) {
 
     try {
 
-        statusText.textContent = "Loading Screenshot...";
+        statusText.textContent = "Loading Image...";
 
         previewImage.src = URL.createObjectURL(file);
 
-        const originalMat = await processor.load(file);
+        previewImage.style.display = "block";
 
-        statusText.textContent = "Enhancing Image...";
+        const source = await processor.load(file);
 
-        const imageData = processor.process(originalMat);
+        statusText.textContent = "Processing...";
 
-        statusText.textContent = "Detecting Schedule...";
+        const imageData = processor.process(source);
+
+        statusText.textContent = "Finding Schedule...";
 
         const detection = detector.detect(imageData);
 
         if (!detection) {
 
+            statusText.textContent = "Schedule Not Found";
+
             processor.cleanup(
+
                 imageData.gray,
                 imageData.enhanced,
                 imageData.binary,
                 imageData.original
-            );
 
-            statusText.textContent = "Schedule Not Found";
+            );
 
             return;
 
         }
 
         detector.drawRectangle(
+
             detection.original,
+
             detection.rect
+
         );
 
         cv.imshow(
+
             processedCanvas,
+
             detection.original
+
         );
 
         cv.imshow(
+
             cropCanvas,
+
             detection.crop
+
         );
 
-        statusText.textContent =
-            "Schedule Found ✓";
+        statusText.textContent = "Schedule Found";
 
         processor.cleanup(
 
@@ -188,7 +194,9 @@ async function processScreenshot(file) {
 
         console.error(error);
 
-        statusText.textContent = "Processing Failed";
+        statusText.textContent = "Error";
+
+        alert(error.message);
 
     }
 
