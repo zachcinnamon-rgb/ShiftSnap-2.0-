@@ -4,40 +4,29 @@
 <head>
 
     <meta charset="UTF-8">
-
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>ShiftSnap</title>
 
     <link rel="stylesheet" href="style.css">
 
-    <!-- OpenCV Initialization -->
-    <script>
-        window.cvReady = false;
-
-        var Module = {
-            onRuntimeInitialized() {
-
+    <!-- OpenCV -->
+    <script async
+        src="https://docs.opencv.org/4.x/opencv.js"
+        onload="
+            cv['onRuntimeInitialized'] = function () {
                 window.cvReady = true;
-
-                console.log("OpenCV Ready");
-
-                const status = document.getElementById("statusText");
-
-                if (status) {
-                    status.textContent = "OpenCV Ready";
-                }
-
-            }
-        };
+                console.log('OpenCV Ready');
+            };
+        ">
     </script>
 
-    <!-- OpenCV -->
-    <script src="https://docs.opencv.org/4.x/opencv.js"></script>
-
-    <!-- OCR -->
+    <!-- Tesseract OCR -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+    <script>
+        window.cvReady = false;
+    </script>
 
 </head>
 
@@ -66,69 +55,89 @@
             hidden>
 
         <p class="hint">
-            or drag and drop a screenshot anywhere on this page
+            Or drag and drop a screenshot anywhere on the page.
         </p>
 
     </section>
 
-    <section id="previewContainer">
+    <section>
+
+        <h2>Status</h2>
+
+        <p id="statusText">
+            Loading OpenCV...
+        </p>
+
+    </section>
+
+    <section>
 
         <h2>Original Screenshot</h2>
 
         <img
             id="previewImage"
-            alt="Original Screenshot"
-            style="display:none;max-width:100%;border:1px solid #ccc;">
+            style="
+                display:none;
+                max-width:100%;
+                border:1px solid #ccc;
+            ">
 
     </section>
 
-    <section id="processedContainer">
+    <section>
 
         <h2>Schedule Detection</h2>
 
         <canvas
             id="processedCanvas"
-            style="max-width:100%;border:1px solid #ccc;">
-        </canvas>
-
-        <h2 style="margin-top:30px;">
-            Cropped Schedule
-        </h2>
-
-        <canvas
-            id="cropCanvas"
-            style="max-width:100%;border:1px solid #ccc;">
+            style="
+                width:100%;
+                max-width:100%;
+                border:1px solid #ccc;
+            ">
         </canvas>
 
     </section>
 
-    <section class="status">
+    <section>
 
-        <strong>Status:</strong>
+        <h2>Cropped Schedule</h2>
 
-        <span id="statusText">
-            Loading OpenCV...
-        </span>
+        <canvas
+            id="cropCanvas"
+            style="
+                width:100%;
+                max-width:100%;
+                border:1px solid #ccc;
+            ">
+        </canvas>
 
     </section>
 
 </div>
 
-<!-- Project Scripts -->
+<!-- Application Scripts -->
 
 <script src="js/imageProcessor.js"></script>
 <script src="js/gridDetector.js"></script>
-
-<!-- These will be added as we build them -->
-<!--
-<script src="js/cellExtractor.js"></script>
-<script src="js/ocr.js"></script>
-<script src="js/parser.js"></script>
-<script src="js/calendar.js"></script>
-<script src="js/shifts.js"></script>
--->
-
 <script src="app.js"></script>
+
+<script>
+
+const waitForOpenCV = setInterval(() => {
+
+    if (window.cvReady) {
+
+        clearInterval(waitForOpenCV);
+
+        document.getElementById("statusText").textContent =
+            "Ready";
+
+    }
+
+},100);
+
+</script>
 
 </body>
 
