@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShiftSnap</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/opencv.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+</head>
+<body>
+
+<div class="container">
+
+    <header>
+        <h1>ShiftSnap</h1>
+        <p>FAA WMT Schedule Importer</p>
+    </header>
+
+    <section class="upload-card">
+
+        <input
+            id="imageInput"
+            type="file"
+            accept="image/*"
+            hidden>
+
+        <button id="uploadButton">
+            Select WMT Screenshot
+        </button>
+
+        <p class="hint">
+            or drag and drop a screenshot here
+        </p>
+
+    </section>
+
+    <section id="previewContainer">
+
+        <img
+            id="previewImage"
+            alt="Preview">
+
+    </section>
+
+    <section class="status">
+
+        <span id="statusText">
+
+            Ready
+
+        </span>
+
+    </section>
+
+</div>
+
+<script src="app.js"></script>
+
+</body>
+</html>
