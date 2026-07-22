@@ -2,18 +2,28 @@
 ==========================================
 ShiftSnap
 gridDetector.js
-Version 0.2
+Version 0.3
 ==========================================
 
 Responsibilities
+----------------
+• Detect horizontal grid lines
+• Detect vertical grid lines
+• Combine line masks
+• Find largest schedule rectangle
+• Crop schedule
+• Draw debugging rectangle
 
-• Detect horizontal lines
-• Detect vertical lines
-• Combine them
-• Find the largest schedule rectangle
-• Draw a box around it
-• Return crop coordinates
-
+Returns:
+{
+    original,
+    gray,
+    enhanced,
+    binary,
+    grid,
+    rect,
+    crop
+}
 ==========================================
 */
 
@@ -25,108 +35,95 @@ class GridDetector {
 
     }
 
-    detect(processedMat) {
+    detect(imageData) {
 
-        const horizontal =
-            this.detectHorizontal(processedMat);
+        const horizontal = this.detectHorizontal(imageData.binary);
 
-        const vertical =
-            this.detectVertical(processedMat);
+        const vertical = this.detectVertical(imageData.binary);
 
         const grid = new cv.Mat();
 
         cv.add(horizontal, vertical, grid);
 
-        const contourResult =
-            this.findLargestRectangle(grid);
+        const rect = this.findLargestRectangle(grid);
 
         horizontal.delete();
         vertical.delete();
-        grid.delete();
 
-        return contourResult;
+        if (!rect) {
 
-    }
+            grid.delete();
 
-    detectHorizontal(src) {
+            return null;
 
-        const horizontal = src.clone();
+        }
 
-        const size = Math.max(
-            25,
-            Math.floor(src.cols / 20)
-        );
+        const crop = this.crop(imageData.original, rect);
 
-        const structure =
-            cv.getStructuringElement(
+        return {
 
-                cv.MORPH_RECT,
+            ...imageData,
 
-                new cv.Size(size,1)
+            grid,
 
-            );
+            rect,
 
-        cv.erode(
-            horizontal,
-            horizontal,
-            structure
-        );
+            crop
 
-        cv.dilate(
-            horizontal,
-            horizontal,
-            structure
-        );
-
-        structure.delete();
-
-        return horizontal;
+        };
 
     }
 
-    detectVertical(src){
+    detectHorizontal(binary) {
 
-        const vertical = src.clone();
+        const result = binary.clone();
 
-        const size = Math.max(
-            25,
-            Math.floor(src.rows / 20)
+        const kernelWidth = Math.max(
+            40,
+            Math.floor(binary.cols / 18)
         );
 
-        const structure =
-            cv.getStructuringElement(
-
-                cv.MORPH_RECT,
-
-                new cv.Size(1,size)
-
-            );
-
-        cv.erode(
-            vertical,
-            vertical,
-            structure
+        const kernel = cv.getStructuringElement(
+            cv.MORPH_RECT,
+            new cv.Size(kernelWidth, 1)
         );
 
-        cv.dilate(
-            vertical,
-            vertical,
-            structure
-        );
+        cv.erode(result, result, kernel);
+        cv.dilate(result, result, kernel);
 
-        structure.delete();
+        kernel.delete();
 
-        return vertical;
+        return result;
 
     }
 
-    findLargestRectangle(grid){
+    detectVertical(binary) {
 
-        const contours =
-            new cv.MatVector();
+        const result = binary.clone();
 
-        const hierarchy =
-            new cv.Mat();
+        const kernelHeight = Math.max(
+            40,
+            Math.floor(binary.rows / 18)
+        );
+
+        const kernel = cv.getStructuringElement(
+            cv.MORPH_RECT,
+            new cv.Size(1, kernelHeight)
+        );
+
+        cv.erode(result, result, kernel);
+        cv.dilate(result, result, kernel);
+
+        kernel.delete();
+
+        return result;
+
+    }
+
+    findLargestRectangle(grid) {
+
+        const contours = new cv.MatVector();
+        const hierarchy = new cv.Mat();
 
         cv.findContours(
 
@@ -142,42 +139,33 @@ class GridDetector {
 
         );
 
-        let bestRect = null;
+        let largestRect = null;
+        let largestArea = 0;
 
-        let bestArea = 0;
+        for (let i = 0; i < contours.size(); i++) {
 
-        for(let i=0;i<contours.size();i++){
+            const contour = contours.get(i);
 
-            const contour =
-                contours.get(i);
+            const rect = cv.boundingRect(contour);
 
-            const rect =
-                cv.boundingRect(contour);
+            const area = rect.width * rect.height;
 
-            const area =
-                rect.width * rect.height;
+            if (
+                area > this.MIN_AREA &&
+                area > largestArea
+            ) {
 
-            if(area < this.MIN_AREA){
+                largestArea = area;
 
-                contour.delete();
+                largestRect = {
 
-                continue;
+                    x: rect.x,
 
-            }
+                    y: rect.y,
 
-            if(area > bestArea){
+                    width: rect.width,
 
-                bestArea = area;
-
-                bestRect = {
-
-                    x:rect.x,
-
-                    y:rect.y,
-
-                    width:rect.width,
-
-                    height:rect.height
+                    height: rect.height
 
                 };
 
@@ -190,54 +178,93 @@ class GridDetector {
         contours.delete();
         hierarchy.delete();
 
-        return bestRect;
+        return largestRect;
 
     }
 
-    drawRectangle(mat,rect){
+    crop(mat, rect) {
 
-        if(!rect)
-            return;
+        const roi = new cv.Rect(
+
+            rect.x,
+
+            rect.y,
+
+            rect.width,
+
+            rect.height
+
+        );
+
+        return mat.roi(roi).clone();
+
+    }
+
+    drawRectangle(mat, rect) {
 
         cv.rectangle(
 
             mat,
 
-            new cv.Point(rect.x,rect.y),
+            new cv.Point(rect.x, rect.y),
 
             new cv.Point(
 
-                rect.x+rect.width,
+                rect.x + rect.width,
 
-                rect.y+rect.height
+                rect.y + rect.height
 
             ),
 
-            new cv.Scalar(0,255,0,255),
+            new cv.Scalar(0, 255, 0, 255),
 
-            6
+            5
 
         );
 
     }
 
-    crop(mat,rect){
+    drawGrid(mat, grid) {
 
-        return mat.roi(
+        cv.cvtColor(
 
-            new cv.Rect(
+            grid,
 
-                rect.x,
+            grid,
 
-                rect.y,
-
-                rect.width,
-
-                rect.height
-
-            )
+            cv.COLOR_GRAY2RGBA
 
         );
+
+        cv.addWeighted(
+
+            mat,
+
+            0.8,
+
+            grid,
+
+            0.5,
+
+            0,
+
+            mat
+
+        );
+
+    }
+
+    cleanup(...mats) {
+
+        mats.forEach(mat => {
+
+            if (mat instanceof cv.Mat) {
+
+                mat.delete();
+
+            }
+
+        });
 
     }
 
